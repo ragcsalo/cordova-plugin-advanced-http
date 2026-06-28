@@ -5,6 +5,7 @@
 #import "TextResponseSerializer.h"
 #import "TextRequestSerializer.h"
 #import "SM_AFHTTPSessionManager.h"
+#import "SDNetworkActivityIndicator.h"
 
 @interface CordovaHttpPlugin()
 
@@ -191,8 +192,24 @@
     return headerFieldsCopy;
 }
 
+- (SM_AFHTTPSessionManager *)createManager {
+    Class cellularProtocol = NSClassFromString(@"CellularURLProtocol");
+    BOOL shouldForce = (cellularProtocol != nil && [(id)cellularProtocol isEnabled]);
+
+    if (shouldForce) {
+        NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
+        NSMutableArray *classes = [NSMutableArray arrayWithArray:config.protocolClasses ?: @[]];
+        [classes insertObject:cellularProtocol atIndex:0];
+        config.protocolClasses = classes;
+        return [[SM_AFHTTPSessionManager alloc] initWithBaseURL:nil sessionConfiguration:config];
+    }
+
+    return [SM_AFHTTPSessionManager manager];
+}
+
+
 - (void)executeRequestWithoutData:(CDVInvokedUrlCommand*)command withMethod:(NSString*) method {
-    SM_AFHTTPSessionManager *manager = [SM_AFHTTPSessionManager manager];
+    SM_AFHTTPSessionManager *manager = [self createManager];
 
     NSString *url = [command.arguments objectAtIndex:0];
     NSDictionary *headers = [command.arguments objectAtIndex:1];
@@ -248,7 +265,7 @@
 }
 
 - (void)executeRequestWithData:(CDVInvokedUrlCommand*)command withMethod:(NSString*)method {
-    SM_AFHTTPSessionManager *manager = [SM_AFHTTPSessionManager manager];
+    SM_AFHTTPSessionManager *manager = [self createManager];
 
     NSString *url = [command.arguments objectAtIndex:0];
     NSDictionary *data = [command.arguments objectAtIndex:1];
@@ -442,7 +459,7 @@
 }
 
 - (void)uploadFiles:(CDVInvokedUrlCommand*)command {
-    SM_AFHTTPSessionManager *manager = [SM_AFHTTPSessionManager manager];
+    SM_AFHTTPSessionManager *manager = [self createManager];
 
     NSString *url = [command.arguments objectAtIndex:0];
     NSDictionary *headers = [command.arguments objectAtIndex:1];
@@ -504,7 +521,7 @@
 }
 
 - (void)downloadFile:(CDVInvokedUrlCommand*)command {
-    SM_AFHTTPSessionManager *manager = [SM_AFHTTPSessionManager manager];
+    SM_AFHTTPSessionManager *manager = [self createManager];
     manager.responseSerializer = [SM_AFHTTPResponseSerializer serializer];
 
     NSString *url = [command.arguments objectAtIndex:0];
