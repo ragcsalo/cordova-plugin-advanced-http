@@ -5,7 +5,7 @@
 #import "TextResponseSerializer.h"
 #import "TextRequestSerializer.h"
 #import "SM_AFHTTPSessionManager.h"
-#import "SDNetworkActivityIndicator.h"
+#import "CellularProxy.h"
 
 @interface CordovaHttpPlugin()
 
@@ -193,20 +193,26 @@
 }
 
 - (SM_AFHTTPSessionManager *)createManager {
-    Class cellularProtocol = NSClassFromString(@"CellularURLProtocol");
-    BOOL shouldForce = (cellularProtocol != nil && [(id)cellularProtocol isEnabled]);
+    if ([CellularProxy isRunning]) {
+        NSInteger port = [CellularProxy proxyPort];
 
-    if (shouldForce) {
-        NSURLSessionConfiguration *config = [NSURLSessionConfiguration defaultSessionConfiguration];
-        NSMutableArray *classes = [NSMutableArray arrayWithArray:config.protocolClasses ?: @[]];
-        [classes insertObject:cellularProtocol atIndex:0];
-        config.protocolClasses = classes;
-        return [[SM_AFHTTPSessionManager alloc] initWithBaseURL:nil sessionConfiguration:config];
+        NSURLSessionConfiguration *config =
+            [NSURLSessionConfiguration defaultSessionConfiguration];
+        config.connectionProxyDictionary = @{
+            @"HTTPSEnable": @YES,
+            @"HTTPSProxy":  @"127.0.0.1",
+            @"HTTPSPort":   @(port),
+            @"HTTPEnable":  @YES,
+            @"HTTPProxy":   @"127.0.0.1",
+            @"HTTPPort":    @(port)
+        };
+
+        return [[SM_AFHTTPSessionManager alloc] initWithBaseURL:nil
+                                             sessionConfiguration:config];
     }
 
     return [SM_AFHTTPSessionManager manager];
 }
-
 
 - (void)executeRequestWithoutData:(CDVInvokedUrlCommand*)command withMethod:(NSString*) method {
     SM_AFHTTPSessionManager *manager = [self createManager];
